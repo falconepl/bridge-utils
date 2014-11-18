@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import cmd
+import time
 from itertools import product
 from random import sample, shuffle
 
@@ -30,11 +31,19 @@ class Core:
 
 
 class Training(Core):
+    time_stats = {}
+
     def pointcount(self):
         deal = self.deal()
         points = self.count(deal)
         cards = self.by_suit(deal)
         return cards, points
+
+    def record_time(self, id, time):
+        avg, num = self.time_stats.setdefault(id, (0, 0))
+        curr_avg = (time + num * avg) / (num + 1)
+        curr_num = num + 1
+        self.time_stats[id] = (curr_avg, curr_num)
 
 
 class CmdUtils():
@@ -59,6 +68,11 @@ class CmdUtils():
             print(' ', end='')
         print()
 
+    @staticmethod
+    def displ_stats(stats):
+        for stat in stats:
+            print('{}: {:.2f}s'.format(stat, stats[stat][0]))
+
 
 class BridgeUtilsCmd(cmd.Cmd):
     intro = 'Welcome to Bridge Utils!'
@@ -67,14 +81,28 @@ class BridgeUtilsCmd(cmd.Cmd):
 
     def do_pointcount(self, arg):
         """Point count (PC) training"""
+        timing = arg and arg == 'time'
         cards, points = self.train.pointcount()
         CmdUtils.displ_hand(cards)
-        input('Show answer...')
-        print(str(points))
+        if timing:
+            start = time.time()
+            input('Show answer...')
+            stop = time.time()
+            elap_time = stop - start
+            self.train.record_time('point-count', elap_time)
+            print('{}PC ({:.2f}s)'.format(points, elap_time))
+        else:
+            input('Show answer...')
+            print('{}PC'.format(points))
 
     def do_pc(self, arg):
         """Point count (PC) training"""
         return self.do_pointcount(arg)
+
+    def do_stats(self, arg):
+        """Display training statistics"""
+        print('''Average response time:\n======================''')
+        CmdUtils.displ_stats(self.train.time_stats)
 
     def do_quit(self, arg):
         """Exit BridgeUtils"""
